@@ -101,156 +101,6 @@ export default function Home() {
   const router = useRouter()
   const circuitBreaker = useCircuitBreaker()
 
-  // Implement fetchData with retry logic and exponential backoff
-  const fetchData = useCallback(
-    async (retry = 0) => {
-      // If circuit breaker is open, don't make the request
-      if (circuitBreaker.isOpen) {
-        setError("Too many requests. Please wait a moment before trying again.")
-        setLoading(false)
-        return
-      }
-
-      try {
-        setLoading(true)
-        setError(null)
-
-        // Get users first - this doesn't require authentication
-        const { users: userData, error: usersError } = await getUsers()
-
-        // Check for rate limit errors
-        if (
-          usersError &&
-          typeof usersError === "object" &&
-          usersError.message &&
-          typeof usersError.message === "string" &&
-          usersError.message.includes("Rate limit")
-        ) {
-          // Open the circuit breaker to prevent more requests
-          circuitBreaker.open()
-          throw new Error("Rate limit exceeded. Please wait a moment before trying again.")
-        } else if (usersError) {
-          console.error("Error fetching users:", usersError)
-          throw usersError
-        }
-
-        if (!userData || userData.length === 0) {
-          console.warn("No users returned from getUsers")
-        }
-
-        setUsers(userData || [])
-
-        // Try to get current user - don't throw an error if not authenticated
-        try {
-          const supabase = getSupabase()
-          const {
-            data: { user },
-          } = await supabase.auth.getUser()
-
-          if (user && ensureHorizonUser(user)) {
-            setUserId(user.id)
-
-            // Get current vote
-            try {
-              const { vote, error: voteError } = await getCurrentVote(user.id)
-
-              // Check for rate limit errors
-              if (
-                voteError &&
-                typeof voteError === "object" &&
-                voteError.message &&
-                typeof voteError.message === "string" &&
-                voteError.message.includes("Rate limit")
-              ) {
-                // Open the circuit breaker to prevent more requests
-                circuitBreaker.open()
-                console.warn("Rate limit hit when fetching vote")
-                // Don't throw, just continue without vote data
-              } else if (voteError) {
-                console.error("Error fetching vote:", voteError)
-              }
-
-              if (vote) {
-                setSelectedUser(vote.votee_id)
-                setHasVoted(true)
-              }
-            } catch (voteErr) {
-              console.error("Error in vote fetch:", voteErr)
-              // Don't fail the whole page load for vote errors
-            }
-          } else {
-            // User is not authenticated or not from Horizon
-            setUserId(null)
-            setSelectedUser(null)
-            setHasVoted(false)
-          }
-        } catch (authErr) {
-          // Handle auth errors gracefully - just consider the user not logged in
-          console.log("User not authenticated:", authErr)
-          setUserId(null)
-          setSelectedUser(null)
-          setHasVoted(false)
-        }
-
-        // If we got here, close the circuit breaker
-        circuitBreaker.close()
-      } catch (err) {
-        console.error("Error in fetchData:", err)
-        const errorMessage = getErrorMessage(err)
-
-        // Handle rate limiting with exponential backoff
-        if (errorMessage.includes("Rate limit") && retry < 3) {
-          // Open the circuit breaker
-          circuitBreaker.open()
-
-          const backoffTime = Math.pow(2, retry + 2) * 1000 // More aggressive backoff: 4s, 8s, 16s
-          setError(`Rate limit exceeded. Retrying in ${backoffTime / 1000} seconds...`)
-
-          setTimeout(() => {
-            fetchData(retry + 1)
-          }, backoffTime)
-          return
-        }
-
-        setError(errorMessage)
-      } finally {
-        setLoading(false)
-      }
-    },
-    [circuitBreaker],
-  )
-
-  // Debounced version of fetchData to prevent too many requests
-  const debouncedFetchData = useCallback(
-    debounce(() => {
-      // Only fetch if circuit breaker is closed
-      if (!circuitBreaker.isOpen) {
-        fetchData()
-      }
-    }, 1000), // Increased debounce time
-    [fetchData, circuitBreaker],
-  )
-
-  // Handle authentication code from URL
-  useEffect(() => {
-    const code = searchParams.get("code")
-
-    if (code) {
-      // Remove the code from the URL
-      const newUrl = new URL(window.location.href)
-      newUrl.searchParams.delete("code")
-      router.replace(newUrl.pathname + newUrl.search)
-
-      // We don't need to exchange the code here as it's handled by the callback route
-      debouncedFetchData()
-    }
-  }, [searchParams, router, debouncedFetchData])
-
-  // Initial data fetch
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
-
   const handleVote = async (voteeId: string) => {
     if (!userId) {
       toast({
@@ -319,7 +169,7 @@ export default function Home() {
     // Only retry if circuit breaker is closed
     if (!circuitBreaker.isOpen) {
       setRetryCount(retryCount + 1)
-      fetchData()
+      // fetchData()
     } else {
       toast({
         title: "Too Many Requests",
@@ -338,7 +188,6 @@ export default function Home() {
             Vote for your colleague of the week (Week {weekNumber}, {year})
           </p>
         </div>
-        <AuthButton onAuthChange={debouncedFetchData} />
       </div>
 
       {error && (
