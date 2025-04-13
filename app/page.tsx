@@ -1,129 +1,51 @@
 "use client"
 
-import { useEffect, useState, useCallback, useRef } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
-import type { User } from "@/types"
-import { UserCard } from "@/components/user-card"
 import { AuthButton } from "@/components/auth-button"
 import { getSupabase } from "@/lib/supabase"
-import { getCurrentWeekAndYear } from "@/lib/utils"
-import { getUsers, submitVote, getCurrentVote } from "./actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, Loader2, RefreshCw } from "lucide-react"
-import { ensureHorizonUser } from "@/lib/auth-utils"
 import { Button } from "@/components/ui/button"
-import { VoteModal } from "./components/vote-modal"
-
-// Helper function to extract error message from various error types
-function getErrorMessage(error: any): string {
-  if (typeof error === "string") return error
-  if (error instanceof Error) return error.message
-  if (error && typeof error === "object") {
-    // Try to extract error message from common error object patterns
-    if (error.message) return typeof error.message === "string" ? error.message : JSON.stringify(error.message)
-    if (error.error) return typeof error.error === "string" ? error.error : JSON.stringify(error.error)
-    if (error.statusText) return error.statusText
-    if (error.code) return `Error code: ${error.code}`
-  }
-  return JSON.stringify(error) || "An unknown error occurred"
-}
-
-// Add proper TypeScript types for the debounce function
-function debounce<T extends (...args: any[]) => any>(func: T, wait: number): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout | undefined
-
-  return function executedFunction(...args: Parameters<T>) {
-    const later = () => {
-      timeout = undefined
-      func(...args)
-    }
-
-    if (timeout !== undefined) {
-      clearTimeout(timeout)
-    }
-    timeout = setTimeout(later, wait)
-  }
-}
-
-// Circuit breaker to prevent too many requests
-function useCircuitBreaker(initialState = false, resetTimeMs = 30000) {
-  const [isOpen, setIsOpen] = useState(initialState)
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
-
-  const open = useCallback(() => {
-    setIsOpen(true)
-
-    // Clear any existing timer
-    if (timerRef.current) {
-      clearTimeout(timerRef.current)
-    }
-
-    // Set a timer to close the circuit breaker after resetTimeMs
-    timerRef.current = setTimeout(() => {
-      setIsOpen(false)
-      timerRef.current = null
-    }, resetTimeMs)
-  }, [resetTimeMs])
-
-  const close = useCallback(() => {
-    setIsOpen(false)
-
-    if (timerRef.current) {
-      clearTimeout(timerRef.current)
-      timerRef.current = null
-    }
-  }, [])
-
-  // Clean up timer on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current)
-      }
-    }
-  }, [])
-
-  return { isOpen, open, close }
-}
+import { SessionCard } from "./components/session-card"
+import { SessionManager } from "./components/session-manager"
+import { VotingSession } from '@/types'
+import { getVotingSessions } from './actions'
 
 export default function Home() {
-  const [users, setUsers] = useState<User[]>([])
+  const [sessions, setSessions] = useState<VotingSession[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selectedUser, setSelectedUser] = useState<string | null>(null)
-  const [hasVoted, setHasVoted] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [retryCount, setRetryCount] = useState(0)
-  const [isVoteModalOpen, setIsVoteModalOpen] = useState(false)
-  const [selectedUserData, setSelectedUserData] = useState<User | null>(null)
   const { toast } = useToast()
-  const { weekNumber, year } = getCurrentWeekAndYear()
-  const searchParams = useSearchParams()
   const router = useRouter()
-  const circuitBreaker = useCircuitBreaker()
   const supabase = getSupabase()
 
-  const loadUsers = useCallback(async () => {
+  const loadSessions = async () => {
     try {
       setLoading(true)
       setError(null)
-      const result = await getUsers()
 
-      if ('error' in result && result.error) {
-        const errorMessage = typeof result.error === 'string' ? result.error : result.error.message
-        setError(errorMessage)
-        toast({
-          title: "Error loading users",
-          description: errorMessage,
-          variant: "destructive",
-        })
-      } else if (result.users) {
-        setUsers(result.users)
+      console.log("Fetching sessions...")
+      const { sessions, error: sessionsError } = await getVotingSessions()
+
+      if (sessionsError) {
+        console.error("Error fetching sessions:", sessionsError)
+        throw sessionsError
       }
+
+      if (!sessions) {
+        throw new Error("No sessions data returned")
+      }
+
+      console.log("Sessions data:", sessions)
+      setSessions(sessions)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load users'
+      console.error("Full error object:", err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load sessions'
       setError(errorMessage)
       toast({
         title: "Error",
@@ -133,117 +55,45 @@ export default function Home() {
     } finally {
       setLoading(false)
     }
-  }, [toast])
-
-  const checkCurrentVote = useCallback(async (currentUserId: string) => {
-    try {
-      const { vote, error } = await getCurrentVote(currentUserId)
-      if (error) {
-        console.error("Error checking current vote:", error)
-        return
-      }
-      if (vote) {
-        setSelectedUser(vote.votee_id)
-        setHasVoted(true)
-      }
-    } catch (err) {
-      console.error("Error checking current vote:", err)
-    }
-  }, [])
+  }
 
   useEffect(() => {
     const checkAuth = async () => {
+      console.log("Checking authentication...")
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
+        console.log("No session found, redirecting to auth...")
         router.push('/auth')
         return
       }
+
+      console.log("User authenticated:", session.user.id)
+
+      // Check if user is admin
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('is_admin')
+        .eq('id', session.user.id)
+        .single()
+
+      if (userError) {
+        console.error("Error fetching user data:", userError)
+      } else {
+        console.log("User data:", userData)
+        setIsAdmin(userData?.is_admin || false)
+      }
+
       setUserId(session.user.id)
-      await loadUsers()
-      await checkCurrentVote(session.user.id)
+      await loadSessions()
     }
 
     checkAuth()
-  }, [router, loadUsers, checkCurrentVote])
-
-  const handleVoteClick = (user: User) => {
-    if (hasVoted) return
-    setSelectedUserData(user)
-    setIsVoteModalOpen(true)
-  }
-
-  const handleVoteSubmit = async (reason: string, honorableMentions: string) => {
-    if (!userId || !selectedUserData) {
-      toast({
-        title: "Error",
-        description: "Please try voting again",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (circuitBreaker.isOpen) {
-      toast({
-        title: "Too Many Requests",
-        description: "Please wait a moment before trying again.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    try {
-      setSubmitting(true)
-      const { success, error: voteError } = await submitVote(userId, selectedUserData.id, reason, honorableMentions)
-
-      if (voteError) {
-        const errorMessage = getErrorMessage(voteError)
-        if (errorMessage.includes("Rate limit")) {
-          circuitBreaker.open()
-          toast({
-            title: "Rate Limit Exceeded",
-            description: "Please wait a moment before trying again.",
-            variant: "destructive",
-          })
-        } else {
-          toast({
-            title: "Error",
-            description: errorMessage,
-            variant: "destructive",
-          })
-        }
-        return
-      }
-
-      setSelectedUser(selectedUserData.id)
-      setHasVoted(true)
-      setIsVoteModalOpen(false)
-      toast({
-        title: "Vote submitted",
-        description: "Your vote has been recorded",
-      })
-    } catch (err) {
-      console.error("Error submitting vote:", err)
-      toast({
-        title: "Error",
-        description: getErrorMessage(err),
-        variant: "destructive",
-      })
-    } finally {
-      setSubmitting(false)
-    }
-  }
+  }, [router])
 
   const handleRetry = () => {
-    if (!circuitBreaker.isOpen) {
-      setRetryCount(prev => prev + 1)
-      loadUsers()
-    } else {
-      toast({
-        title: "Too Many Requests",
-        description: "Please wait a moment before trying again.",
-        variant: "destructive",
-      })
-    }
+    console.log("Retrying session load...")
+    setRetryCount(prev => prev + 1)
+    loadSessions()
   }
 
   return (
@@ -252,25 +102,33 @@ export default function Home() {
         <div>
           <h1 className="text-3xl font-bold mb-2">Person of the Week</h1>
           <p className="text-muted-foreground">
-            Vote for your colleague of the week (Week {weekNumber}, {year})
+            View and participate in weekly voting sessions
           </p>
         </div>
-        {error && (
-          <Button
-            variant="outline"
-            onClick={handleRetry}
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Retry
-          </Button>
-        )}
+        <div className="flex items-center gap-4">
+          {error && (
+            <Button
+              variant="outline"
+              onClick={handleRetry}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Retry
+            </Button>
+          )}
+          {isAdmin && (
+            <SessionManager
+              onSessionCreated={loadSessions}
+              onSessionClosed={loadSessions}
+            />
+          )}
+        </div>
       </div>
 
       {error && (
         <Alert variant="destructive" className="mb-4">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error loading users</AlertTitle>
+          <AlertTitle>Error loading sessions</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
@@ -280,31 +138,30 @@ export default function Home() {
           <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       ) : userId ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {users.map((user) => (
-            <UserCard
-              key={user.id}
-              user={user}
-              isSelected={selectedUser === user.id}
-              hasVoted={hasVoted}
-              onVote={() => handleVoteClick(user)}
-            />
-          ))}
+        <div className="space-y-4">
+          {sessions.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No voting sessions found. {isAdmin && "Use the 'Create New Session' button to start one."}
+            </div>
+          ) : (
+            sessions.map((session) => (
+              <SessionCard
+                key={session.id}
+                id={session.id}
+                weekNumber={session.week_number}
+                status={session.status}
+                createdAt={session.created_at}
+              />
+            ))
+          )}
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center h-64 space-y-4">
           <h2 className="text-2xl font-semibold">Welcome to Horizon - Person of the Week</h2>
-          <p className="text-muted-foreground">Please sign in to vote for your colleague of the week</p>
+          <p className="text-muted-foreground">Please sign in to view and participate in voting sessions</p>
           <AuthButton />
         </div>
       )}
-
-      <VoteModal
-        isOpen={isVoteModalOpen}
-        onClose={() => setIsVoteModalOpen(false)}
-        onConfirm={handleVoteSubmit}
-        selectedUser={selectedUserData}
-      />
     </div>
   )
 }
