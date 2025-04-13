@@ -100,6 +100,20 @@ export default function Home() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const circuitBreaker = useCircuitBreaker()
+  const supabase = getSupabase()
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.push('/auth')
+        return
+      }
+      setUserId(session.user.id)
+    }
+
+    checkAuth()
+  }, [router])
 
   const handleVote = async (voteeId: string) => {
     if (!userId) {
