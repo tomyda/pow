@@ -1,25 +1,49 @@
 "use client"
 
-import { useState } from "react"
-import { testSupabaseSetup } from "../actions"
+import { useState, useEffect } from "react"
+import { getSupabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
 
 export default function TestPage() {
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
+  const supabase = getSupabase()
 
   const runTest = async () => {
     try {
       setLoading(true)
       setError(null)
-      const response = await testSupabaseSetup()
-      setResult(response)
-      if (!response.success && response.error) {
-        setError(response.error)
+
+      // Try to get the authenticated user
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+      if (authError) {
+        throw authError
       }
+
+      // Try a simple database query
+      const { data: testData, error: queryError } = await supabase
+        .from('users')
+        .select('id')
+        .limit(1)
+
+      if (queryError) {
+        throw queryError
+      }
+
+      setResult({
+        success: true,
+        data: {
+          hasUser: !!user,
+          hasDbAccess: !!testData
+        }
+      })
     } catch (err) {
+      console.error('Test error:', err)
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setLoading(false)
@@ -46,10 +70,11 @@ export default function TestPage() {
       </Button>
 
       {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          <p className="font-bold">Error</p>
-          <p>{error}</p>
-        </div>
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       {result && !error && (
