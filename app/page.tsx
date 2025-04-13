@@ -48,7 +48,7 @@ function debounce<T extends (...args: any[]) => any>(func: T, wait: number): (..
 // Circuit breaker to prevent too many requests
 function useCircuitBreaker(initialState = false, resetTimeMs = 30000) {
   const [isOpen, setIsOpen] = useState(initialState)
-  const timerRef = useRef(null)
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   const open = useCallback(() => {
     setIsOpen(true)
@@ -101,9 +101,6 @@ export default function Home() {
   const router = useRouter()
   const circuitBreaker = useCircuitBreaker()
 
-  // Get the Supabase client once
-  const supabase = getSupabase()
-
   // Implement fetchData with retry logic and exponential backoff
   const fetchData = useCallback(
     async (retry = 0) => {
@@ -145,6 +142,7 @@ export default function Home() {
 
         // Try to get current user - don't throw an error if not authenticated
         try {
+          const supabase = getSupabase()
           const {
             data: { user },
           } = await supabase.auth.getUser()
@@ -219,7 +217,7 @@ export default function Home() {
         setLoading(false)
       }
     },
-    [supabase, circuitBreaker],
+    [circuitBreaker],
   )
 
   // Debounced version of fetchData to prevent too many requests
