@@ -28,15 +28,19 @@ function getErrorMessage(error: any): string {
   return JSON.stringify(error) || "An unknown error occurred"
 }
 
-// Debounce function to prevent too many requests
-function debounce(func, wait) {
-  let timeout
-  return function executedFunction(...args) {
+// Add proper TypeScript types for the debounce function
+function debounce<T extends (...args: any[]) => any>(func: T, wait: number): (...args: Parameters<T>) => void {
+  let timeout: NodeJS.Timeout | undefined
+
+  return function executedFunction(...args: Parameters<T>) {
     const later = () => {
-      clearTimeout(timeout)
+      timeout = undefined
       func(...args)
     }
-    clearTimeout(timeout)
+
+    if (timeout !== undefined) {
+      clearTimeout(timeout)
+    }
     timeout = setTimeout(later, wait)
   }
 }
@@ -327,34 +331,6 @@ export default function Home() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="container mx-auto py-16 flex flex-col items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin mb-4" />
-        <p>Loading users...</p>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="container mx-auto py-8">
-        <Alert variant="destructive" className="mb-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-
-        <div className="flex justify-center">
-          <Button onClick={handleRetry} className="flex items-center gap-2" disabled={circuitBreaker.isOpen}>
-            <RefreshCw className="h-4 w-4" />
-            {circuitBreaker.isOpen ? "Please wait..." : "Retry"}
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-8">
@@ -367,52 +343,37 @@ export default function Home() {
         <AuthButton onAuthChange={debouncedFetchData} />
       </div>
 
-      {!userId && (
-        <Alert className="mb-6">
-          <AlertTitle>Authentication Required</AlertTitle>
-          <AlertDescription>
-            Please sign in with your @usehorizon.ai Google account to vote for Person of the Week. Only users with
-            @usehorizon.ai email addresses are allowed.
-          </AlertDescription>
+      {error && (
+        <Alert variant="destructive" className="mb-4">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
-      {hasVoted && (
-        <Alert className="mb-6">
-          <AlertTitle>Vote Submitted</AlertTitle>
-          <AlertDescription>
-            You have already voted this week. You can change your vote by selecting another person.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {submitting && (
-        <div className="mb-6 flex items-center gap-2 text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span>Submitting your vote...</span>
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      ) : userId ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {users.map((user) => (
+            <UserCard
+              key={user.id}
+              user={user}
+              isSelected={selectedUser === user.id}
+              hasVoted={hasVoted}
+              onVote={() => handleVote(user.id)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center h-64 space-y-4">
+          <h2 className="text-2xl font-semibold">Welcome to Horizon - Person of the Week</h2>
+          <p className="text-muted-foreground">Please sign in to vote for your colleague of the week</p>
+          <AuthButton />
         </div>
       )}
-
-      {circuitBreaker.isOpen && (
-        <Alert className="mb-6">
-          <AlertTitle>Rate Limit</AlertTitle>
-          <AlertDescription>
-            We're experiencing high traffic. Please wait a moment before making more requests.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {users.map((user) => (
-          <UserCard
-            key={user.id}
-            user={user}
-            isSelected={selectedUser === user.id}
-            hasVoted={hasVoted}
-            onVote={handleVote}
-          />
-        ))}
-      </div>
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { getSupabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2 } from "lucide-react"
+import { AuthChangeEvent, Session } from "@supabase/supabase-js"
 
 interface AuthButtonProps {
   onAuthChange?: () => void
@@ -15,14 +16,12 @@ export function AuthButton({ onAuthChange }: AuthButtonProps) {
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
 
-  // Get the Supabase client once
-  const supabase = getSupabase()
-
   useEffect(() => {
     let mounted = true
 
     async function getUser() {
       try {
+        const supabase = getSupabase()
         const {
           data: { user },
         } = await supabase.auth.getUser()
@@ -42,9 +41,10 @@ export function AuthButton({ onAuthChange }: AuthButtonProps) {
 
     getUser()
 
+    const supabase = getSupabase()
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event: AuthChangeEvent, session: Session | null) => {
       if (mounted) {
         setUser(session?.user ?? null)
         if (onAuthChange) {
@@ -57,11 +57,11 @@ export function AuthButton({ onAuthChange }: AuthButtonProps) {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [onAuthChange, supabase])
+  }, [onAuthChange])
 
   const handleSignIn = async () => {
     try {
-      // Use a simpler approach for Google auth
+      const supabase = getSupabase()
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -84,6 +84,7 @@ export function AuthButton({ onAuthChange }: AuthButtonProps) {
 
   const handleSignOut = async () => {
     try {
+      const supabase = getSupabase()
       await supabase.auth.signOut()
       toast({
         title: "Signed out",
@@ -104,11 +105,10 @@ export function AuthButton({ onAuthChange }: AuthButtonProps) {
   }
 
   return user ? (
-    <div className="flex items-center gap-4">
-      <span className="text-sm text-muted-foreground">{user.email}</span>
-      <Button onClick={handleSignOut}>Sign Out</Button>
-    </div>
+    <Button variant="outline" onClick={handleSignOut}>
+      Sign Out
+    </Button>
   ) : (
-    <Button onClick={handleSignIn}>Sign in with Google</Button>
+    <Button onClick={handleSignIn}>Sign In</Button>
   )
 }

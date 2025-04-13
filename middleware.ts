@@ -23,6 +23,11 @@ export async function middleware(req: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession()
 
+  // If user is not signed in and trying to access a protected route, redirect to home
+  if (!session && req.nextUrl.pathname !== '/' && !req.nextUrl.pathname.startsWith('/auth')) {
+    return NextResponse.redirect(new URL('/', req.url))
+  }
+
   // If user is signed in but doesn't have a valid email domain
   if (session?.user) {
     const email = session.user.email
@@ -38,7 +43,17 @@ export async function middleware(req: NextRequest) {
   return res
 }
 
-// Only apply middleware to the auth routes
+// Specify which routes should be protected
 export const config = {
-  matcher: ["/auth/:path*"],
+  matcher: [
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     * - auth callback route
+     */
+    '/((?!_next/static|_next/image|favicon.ico|auth/callback).*)',
+  ],
 }

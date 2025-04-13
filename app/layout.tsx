@@ -3,6 +3,7 @@ import "./globals.css"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
+import { AuthButton } from "@/components/auth-button"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -20,10 +21,22 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <main className="min-h-screen bg-background">{children}</main>
+          <div className="min-h-screen bg-background">
+            <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+              <div className="container flex h-14 items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <h1 className="text-lg font-semibold">Horizon - Person of the Week</h1>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <AuthButton />
+                </div>
+              </div>
+            </header>
+            <main>{children}</main>
+          </div>
         </ThemeProvider>
       </body>
     </html>
