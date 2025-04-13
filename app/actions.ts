@@ -21,13 +21,13 @@ async function safeSupabaseRequest<T>(
   }
 }
 
-// Get all users
+// Get all users with their latest win information
 export async function getUsers() {
   try {
     const supabase = await createActionSupabaseClient()
     const { data: users, error: usersError } = await supabase
       .from("users")
-      .select("*")
+      .select("id, name, email, avatar_url, created_at")
       .order("name")
 
     if (usersError) {
@@ -93,7 +93,12 @@ export async function getCurrentVote(userId: string) {
 }
 
 // Submit a vote
-export async function submitVote(voterId: string, voteeId: string) {
+export async function submitVote(
+  voterId: string,
+  voteeId: string,
+  reason: string,
+  honorableMentions: string
+) {
   try {
     const supabase = await createActionSupabaseClient()
     const { weekNumber, year } = getCurrentWeekAndYear()
@@ -105,6 +110,8 @@ export async function submitVote(voterId: string, voteeId: string) {
         votee_id: voteeId,
         week_number: weekNumber,
         year: year,
+        reason: reason,
+        honorable_mentions: honorableMentions,
       })
 
     if (voteError) {

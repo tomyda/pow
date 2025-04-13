@@ -20,15 +20,16 @@ export function UserCard({ user, isSelected, hasVoted, onVote }: UserCardProps) 
 
   return (
     <Card
-      className={`overflow-hidden transition-all duration-200 ${
-        isSelected ? "ring-2 ring-primary" : ""
-      } ${isHovered && !hasVoted ? "shadow-md scale-[1.02]" : ""}`}
+      className={`overflow-hidden transition-all duration-200
+        ${isSelected ? "ring-2 ring-[#FFD700] bg-muted/50" : ""}
+        ${isHovered && !hasVoted ? "shadow-md scale-[1.02]" : ""}
+        ${hasVoted && !isSelected ? "opacity-50" : ""}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       <CardContent className="p-0 relative">
         {isSelected && (
-          <div className="absolute top-2 right-2 z-10 bg-primary text-primary-foreground rounded-full p-1">
+          <div className="absolute top-2 right-2 z-10 bg-[#FFD700] text-black rounded-full p-1">
             <CheckCircle size={20} />
           </div>
         )}
@@ -43,17 +44,24 @@ export function UserCard({ user, isSelected, hasVoted, onVote }: UserCardProps) 
         <div className="p-4">
           <h3 className="text-lg font-semibold">{user.name}</h3>
           <p className="text-sm text-muted-foreground">{user.email}</p>
-          <p className="text-xs text-muted-foreground mt-1">Last win: {formatRelativeTime(user.last_win)}</p>
+          {user.last_win && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Last win: {formatRelativeTime(user.last_win)}
+            </p>
+          )}
+          {isSelected && (
+            <p className="text-sm font-medium text-[#FFD700] mt-2">✨ You voted for this person</p>
+          )}
         </div>
       </CardContent>
       <CardFooter className="p-4 pt-0">
         <Button
           onClick={() => onVote(user.id)}
-          disabled={hasVoted && !isSelected}
+          disabled={hasVoted}
           variant={isSelected ? "default" : "outline"}
-          className="w-full"
+          className={`w-full ${isSelected ? "bg-[#FFD700] hover:bg-[#FFD700]/90 text-black" : ""}`}
         >
-          {isSelected ? "Selected" : hasVoted ? "Vote (Already Voted)" : "Vote"}
+          {isSelected ? "Voted" : hasVoted ? "Voting Closed" : "Vote"}
         </Button>
       </CardFooter>
     </Card>

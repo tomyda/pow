@@ -13,6 +13,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, Loader2, RefreshCw } from "lucide-react"
 import { ensureHorizonUser } from "@/lib/auth-utils"
 import { Button } from "@/components/ui/button"
+import { VoteModal } from "./components/vote-modal"
 
 // Helper function to extract error message from various error types
 function getErrorMessage(error: any): string {
@@ -95,12 +96,60 @@ export default function Home() {
   const [submitting, setSubmitting] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   const [retryCount, setRetryCount] = useState(0)
+  const [isVoteModalOpen, setIsVoteModalOpen] = useState(false)
+  const [selectedUserData, setSelectedUserData] = useState<User | null>(null)
   const { toast } = useToast()
   const { weekNumber, year } = getCurrentWeekAndYear()
   const searchParams = useSearchParams()
   const router = useRouter()
   const circuitBreaker = useCircuitBreaker()
   const supabase = getSupabase()
+
+  const loadUsers = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const result = await getUsers()
+
+      if ('error' in result && result.error) {
+        const errorMessage = typeof result.error === 'string' ? result.error : result.error.message
+        setError(errorMessage)
+        toast({
+          title: "Error loading users",
+          description: errorMessage,
+          variant: "destructive",
+        })
+      } else if (result.users) {
+        setUsers(result.users)
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load users'
+      setError(errorMessage)
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [toast])
+
+  const checkCurrentVote = useCallback(async (currentUserId: string) => {
+    try {
+      const { vote, error } = await getCurrentVote(currentUserId)
+      if (error) {
+        console.error("Error checking current vote:", error)
+        return
+      }
+      if (vote) {
+        setSelectedUser(vote.votee_id)
+        setHasVoted(true)
+      }
+    } catch (err) {
+      console.error("Error checking current vote:", err)
+    }
+  }, [])
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -110,22 +159,29 @@ export default function Home() {
         return
       }
       setUserId(session.user.id)
+      await loadUsers()
+      await checkCurrentVote(session.user.id)
     }
 
     checkAuth()
-  }, [router])
+  }, [router, loadUsers, checkCurrentVote])
 
-  const handleVote = async (voteeId: string) => {
-    if (!userId) {
+  const handleVoteClick = (user: User) => {
+    if (hasVoted) return
+    setSelectedUserData(user)
+    setIsVoteModalOpen(true)
+  }
+
+  const handleVoteSubmit = async (reason: string, honorableMentions: string) => {
+    if (!userId || !selectedUserData) {
       toast({
-        title: "Authentication required",
-        description: "Please sign in to vote",
+        title: "Error",
+        description: "Please try voting again",
         variant: "destructive",
       })
       return
     }
 
-    // If circuit breaker is open, don't make the request
     if (circuitBreaker.isOpen) {
       toast({
         title: "Too Many Requests",
@@ -137,16 +193,12 @@ export default function Home() {
 
     try {
       setSubmitting(true)
-      setSelectedUser(voteeId)
-
-      const { success, error: voteError } = await submitVote(userId, voteeId)
+      const { success, error: voteError } = await submitVote(userId, selectedUserData.id, reason, honorableMentions)
 
       if (voteError) {
         const errorMessage = getErrorMessage(voteError)
         if (errorMessage.includes("Rate limit")) {
-          // Open the circuit breaker
           circuitBreaker.open()
-
           toast({
             title: "Rate Limit Exceeded",
             description: "Please wait a moment before trying again.",
@@ -162,7 +214,9 @@ export default function Home() {
         return
       }
 
+      setSelectedUser(selectedUserData.id)
       setHasVoted(true)
+      setIsVoteModalOpen(false)
       toast({
         title: "Vote submitted",
         description: "Your vote has been recorded",
@@ -180,10 +234,9 @@ export default function Home() {
   }
 
   const handleRetry = () => {
-    // Only retry if circuit breaker is closed
     if (!circuitBreaker.isOpen) {
-      setRetryCount(retryCount + 1)
-      // fetchData()
+      setRetryCount(prev => prev + 1)
+      loadUsers()
     } else {
       toast({
         title: "Too Many Requests",
@@ -202,12 +255,22 @@ export default function Home() {
             Vote for your colleague of the week (Week {weekNumber}, {year})
           </p>
         </div>
+        {error && (
+          <Button
+            variant="outline"
+            onClick={handleRetry}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Retry
+          </Button>
+        )}
       </div>
 
       {error && (
         <Alert variant="destructive" className="mb-4">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
+          <AlertTitle>Error loading users</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
@@ -224,7 +287,7 @@ export default function Home() {
               user={user}
               isSelected={selectedUser === user.id}
               hasVoted={hasVoted}
-              onVote={() => handleVote(user.id)}
+              onVote={() => handleVoteClick(user)}
             />
           ))}
         </div>
@@ -235,6 +298,13 @@ export default function Home() {
           <AuthButton />
         </div>
       )}
+
+      <VoteModal
+        isOpen={isVoteModalOpen}
+        onClose={() => setIsVoteModalOpen(false)}
+        onConfirm={handleVoteSubmit}
+        selectedUser={selectedUserData}
+      />
     </div>
   )
 }

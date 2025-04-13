@@ -3,7 +3,7 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
 // List of routes that require authentication
-const protectedRoutes = ['/vote', '/profile', '/admin', '/test']
+const protectedRoutes = ['/vote', '/profile', '/admin', '/test', '/users']
 
 export async function middleware(req: NextRequest) {
   try {
@@ -68,5 +68,6 @@ export const config = {
     '/profile/:path*',
     '/admin/:path*',
     '/auth/:path*',
+    '/users/:path*',
   ],
 }
