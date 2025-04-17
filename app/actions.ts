@@ -52,6 +52,17 @@ interface SessionWithVotes extends VotingSession {
   votes: Vote[]
 }
 
+interface VoteWithUsers extends Vote {
+  voter: User
+  votee: User
+}
+
+interface VoteeResult {
+  user: User
+  votes: VoteWithUsers[]
+  voteCount: number
+}
+
 // Get voting sessions
 export async function getVotingSessions() {
   try {
@@ -328,5 +339,94 @@ export async function closeVotingSession(sessionId: number) {
     return { success: true }
   } catch (error) {
     return { error }
+  }
+}
+
+// Get voting session results with user information
+export async function getVotingSessionResults(sessionId: number): Promise<{ results: VoteeResult[], error?: Error }> {
+  try {
+    const supabase = await createActionSupabaseClient()
+
+    // First check if session exists and is closed
+    const { data: session, error: sessionError } = await supabase
+      .from('voting_sessions')
+      .select('*')
+      .eq('id', sessionId)
+      .single()
+
+    if (sessionError) {
+      return { results: [], error: new Error('Voting session not found') }
+    }
+
+    if (session.status !== 'CLOSED') {
+      return { results: [], error: new Error('Voting session is not closed yet') }
+    }
+
+    // Get all votes for this session
+    const { data: votes, error: votesError } = await supabase
+      .from('votes')
+      .select('*')
+      .eq('session', sessionId)
+
+    if (votesError) {
+      return { results: [], error: votesError }
+    }
+
+    if (!votes || votes.length === 0) {
+      return { results: [] }
+    }
+
+    // Get unique user IDs from both voters and votees
+    const userIds = [...new Set([
+      ...votes.map(v => v.voter_id),
+      ...votes.map(v => v.votee_id)
+    ])]
+
+    // Fetch user information for all involved users
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('*')
+      .in('id', userIds)
+
+    if (usersError) {
+      return { results: [], error: usersError }
+    }
+
+    const userMap = (users || []).reduce((acc, user) => {
+      acc[user.id] = user
+      return acc
+    }, {} as Record<string, User>)
+
+    // Process votes with user information
+    const voteeMap = new Map<string, VoteeResult>()
+
+    votes.forEach(vote => {
+      const voteeId = vote.votee_id
+      if (!voteeMap.has(voteeId)) {
+        voteeMap.set(voteeId, {
+          user: userMap[voteeId],
+          votes: [],
+          voteCount: 0
+        })
+      }
+      const voteeResult = voteeMap.get(voteeId)!
+      const processedVote: VoteWithUsers = {
+        ...vote,
+        voter: userMap[vote.voter_id],
+        votee: userMap[vote.votee_id]
+      }
+      voteeResult.votes.push(processedVote)
+      voteeResult.voteCount++
+    })
+
+    // Convert to array and sort by vote count
+    const results = Array.from(voteeMap.values())
+      .sort((a, b) => b.voteCount - a.voteCount)
+      .slice(0, 3) // Get top 3
+
+    return { results }
+  } catch (error) {
+    console.error("Error in getVotingSessionResults:", error)
+    return { results: [], error: error instanceof Error ? error : new Error('An unknown error occurred') }
   }
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import Link from "next/link"
 import { getSupabase } from "@/lib/supabase"
 import { Loader2 } from "lucide-react"
@@ -11,9 +11,11 @@ import type { User } from "@/types"
 import { UserCard } from "@/components/user-card"
 import { VoteModal } from "@/app/components/vote-modal"
 import { useToast } from "@/hooks/use-toast"
-import { getUsers, submitVote, getCurrentVoteInVotingSession } from "@/app/actions"
+import { getUsers, submitVote, getCurrentVoteInVotingSession, closeVotingSession } from "@/app/actions"
 import { AuthSession } from '@supabase/supabase-js'
 import { UserCardSkeleton } from "@/components/user-card-skeleton"
+import { Button } from "@/components/ui/button"
+import { Lock } from "lucide-react"
 
 interface VotingSession {
   id: number
@@ -107,15 +109,17 @@ export default function VotingSessionPage() {
 }
 
 const ClosedVotingSession = () => {
+  const params = useParams()
+  const router = useRouter()
+
+  useEffect(() => {
+    // Redirect to reveal results page
+    router.push(`/voting-session/${params.id}/reveal-results`)
+  }, [])
+
   return (
-    <div className="container mx-auto py-8">
-      <Link
-        href="/"
-        className="inline-flex items-center px-4 py-2 mb-6 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-      >
-        ← Back to Sessions
-      </Link>
-      <h1>Voting session finished</h1>
+    <div className="flex justify-center items-center h-screen">
+      <Loader2 className="h-8 w-8 animate-spin" />
     </div>
   )
 }
@@ -130,8 +134,11 @@ const OpenVotingSession = ({ votingSession }: { votingSession: VotingSession }) 
   const [selectedUserData, setSelectedUserData] = useState<User | null>(null)
   const [authSession, setAuthSession] = useState<AuthSession | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [isClosing, setIsClosing] = useState(false)
   const { toast } = useToast()
   const supabase = getSupabase()
+  const router = useRouter()
 
   useEffect(() => {
     async function initialize() {
@@ -152,8 +159,19 @@ const OpenVotingSession = ({ votingSession }: { votingSession: VotingSession }) 
           throw new Error("Not authenticated")
         }
         setAuthSession(authSession)
+
+        // Get user details to check admin status
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('is_admin')
+          .eq('id', authSession.user.id)
+          .single()
+
+        if (userError) throw userError
+        setIsAdmin(userData?.is_admin || false)
+
         const { vote, error: voteError } = await getCurrentVoteInVotingSession(authSession.user.id, votingSession.id)
-        if (voteError && typeof voteError === 'object' && 'code' in voteError && voteError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+        if (voteError && typeof voteError === 'object' && 'code' in voteError && voteError.code !== 'PGRST116') {
           throw voteError
         }
         if (vote) {
@@ -233,14 +251,68 @@ const OpenVotingSession = ({ votingSession }: { votingSession: VotingSession }) 
     }
   }
 
+  const handleCloseSession = async () => {
+    try {
+      setIsClosing(true)
+      const { error } = await closeVotingSession(votingSession.id)
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to close voting session",
+          variant: "destructive",
+        })
+        return
+      }
+
+      toast({
+        title: "Success",
+        description: "Voting session closed successfully",
+      })
+
+      // Redirect to reveal results page
+      router.push(`/voting-session/${votingSession.id}/reveal-results`)
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to close session",
+        variant: "destructive",
+      })
+    } finally {
+      setIsClosing(false)
+    }
+  }
+
   return (
     <div className="container mx-auto py-8">
-      <Link
-        href="/"
-        className="inline-flex items-center px-4 py-2 mb-6 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-      >
-        ← Back to Sessions
-      </Link>
+      <div className="flex justify-between items-center mb-6">
+        <Link
+          href="/"
+          className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+        >
+          ← Back to Sessions
+        </Link>
+        {isAdmin && (
+          <Button
+            variant="destructive"
+            onClick={handleCloseSession}
+            disabled={isClosing}
+            className="flex items-center gap-2"
+          >
+            {isClosing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Closing...
+              </>
+            ) : (
+              <>
+                <Lock className="h-4 w-4" />
+                Close Session
+              </>
+            )}
+          </Button>
+        )}
+      </div>
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">
           Vote - Week {votingSession.week_number}

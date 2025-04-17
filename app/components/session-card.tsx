@@ -86,14 +86,9 @@ export function SessionCard({
     >
       <CardHeader>
         <div className="flex justify-between items-start">
-          <div>
+          <div className="flex flex-col gap-2">
             <CardTitle>Week {weekNumber}</CardTitle>
             <CardDescription>Created on {formattedDate}</CardDescription>
-            {total_votes > 0 && (
-              <p className="text-sm text-muted-foreground mt-1">
-                {total_votes} vote{total_votes !== 1 ? 's' : ''}
-              </p>
-            )}
           </div>
           <div className="flex flex-col items-end gap-2">
             <Badge
@@ -136,8 +131,12 @@ export function SessionCard({
         )}
 
         {voters && voters.length > 0 && (
-          <div className="mt-4">
-            <p className="text-sm text-muted-foreground mb-2">Voters:</p>
+          <div className="mt-4 flex flex-col gap-2">
+            {total_votes > 0 ? (
+              <p className="text-sm text-muted-foreground mt-1">
+                {total_votes} vote{total_votes !== 1 ? 's' : ''}
+              </p>
+            ) : "No votes yet"}
             <div className="flex -space-x-2">
               {voters.map((voter) => (
                 <Avatar key={voter.id} className="h-6 w-6 border-2 border-background">

@@ -4,12 +4,14 @@ import { getSupabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useRouter } from "next/navigation"
 
 export function AuthForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isSignUp, setIsSignUp] = useState(false)
   const { toast } = useToast()
+  const router = useRouter()
 
   const handleSignIn = async () => {
     try {
@@ -30,6 +32,8 @@ export function AuthForm() {
         title: "Signed in",
         description: "You have been signed in successfully",
       })
+
+      router.push("/")
     } catch (error: any) {
       console.error("Error signing in:", error)
       toast({
@@ -45,7 +49,7 @@ export function AuthForm() {
       const supabase = getSupabase()
       console.log("Attempting to sign up...")
 
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
       })
@@ -55,10 +59,19 @@ export function AuthForm() {
         throw error
       }
 
-      toast({
-        title: "Check your email",
-        description: "We've sent you a confirmation email",
-      })
+      // Check if we have a session after signup
+      if (data?.session) {
+        toast({
+          title: "Signed up successfully",
+          description: "Welcome to Horizon!",
+        })
+        router.push("/")
+      } else {
+        toast({
+          title: "Check your email",
+          description: "We've sent you a confirmation email",
+        })
+      }
     } catch (error: any) {
       console.error("Error signing up:", error)
       toast({
