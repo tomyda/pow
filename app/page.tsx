@@ -127,7 +127,6 @@ export default function Home() {
           {isAdmin && (
             <SessionManager
               onSessionCreated={loadSessions}
-              onSessionClosed={loadSessions}
               hasOpenSession={hasOpenSession}
             />
           )}
@@ -163,6 +162,8 @@ export default function Home() {
                 winner={session.winner}
                 voters={session.voters}
                 total_votes={session.total_votes}
+                isAdmin={isAdmin}
+                onSessionClosed={loadSessions}
               />
             ))
           )}
