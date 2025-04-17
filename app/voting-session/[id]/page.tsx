@@ -13,6 +13,7 @@ import { VoteModal } from "@/app/components/vote-modal"
 import { useToast } from "@/hooks/use-toast"
 import { getUsers, submitVote, getCurrentVoteInVotingSession } from "@/app/actions"
 import { AuthSession } from '@supabase/supabase-js'
+import { UserCardSkeleton } from "@/components/user-card-skeleton"
 
 interface VotingSession {
   id: number
@@ -128,12 +129,14 @@ const OpenVotingSession = ({ votingSession }: { votingSession: VotingSession }) 
   const [isVoteModalOpen, setIsVoteModalOpen] = useState(false)
   const [selectedUserData, setSelectedUserData] = useState<User | null>(null)
   const [authSession, setAuthSession] = useState<AuthSession | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
   const supabase = getSupabase()
 
   useEffect(() => {
     async function initialize() {
       try {
+        setIsLoading(true)
         // Fetch all users
         const { users: allUsers, error: usersError } = await getUsers()
         if (usersError) {
@@ -149,7 +152,7 @@ const OpenVotingSession = ({ votingSession }: { votingSession: VotingSession }) 
           throw new Error("Not authenticated")
         }
         setAuthSession(authSession)
-        const { vote, error: voteError } = await getCurrentVoteInVotingSession( authSession.user.id , votingSession.id)
+        const { vote, error: voteError } = await getCurrentVoteInVotingSession(authSession.user.id, votingSession.id)
         if (voteError && typeof voteError === 'object' && 'code' in voteError && voteError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
           throw voteError
         }
@@ -164,6 +167,8 @@ const OpenVotingSession = ({ votingSession }: { votingSession: VotingSession }) 
           description: err instanceof Error ? err.message : "Failed to initialize voting session",
           variant: "destructive",
         })
+      } finally {
+        setIsLoading(false)
       }
     }
 
@@ -246,15 +251,22 @@ const OpenVotingSession = ({ votingSession }: { votingSession: VotingSession }) 
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {users.map((user) => (
-          <UserCard
-            key={user.id}
-            user={user}
-            isSelected={selectedUser === user.id}
-            hasVoted={hasVoted}
-            onVote={() => handleVoteClick(user)}
-          />
-        ))}
+        {isLoading ? (
+          // Show 6 skeleton cards while loading
+          Array.from({ length: 6 }).map((_, index) => (
+            <UserCardSkeleton key={index} />
+          ))
+        ) : (
+          users.map((user) => (
+            <UserCard
+              key={user.id}
+              user={user}
+              isSelected={selectedUser === user.id}
+              hasVoted={hasVoted}
+              onVote={() => handleVoteClick(user)}
+            />
+          ))
+        )}
       </div>
 
       <VoteModal
