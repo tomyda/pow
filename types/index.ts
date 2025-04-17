@@ -2,9 +2,9 @@ export interface User {
   id: string
   name: string
   email: string
-  avatar_url: string | null
-  created_at: string
-  is_admin: boolean
+  avatar_url: string
+  last_win?: string
+  is_admin?: boolean
 }
 
 export interface Vote {
@@ -24,4 +24,7 @@ export interface VotingSession {
   created_at: string
   week_number: number
   status: string
+  winner?: User | null
+  voters?: User[]
+  total_votes?: number
 }

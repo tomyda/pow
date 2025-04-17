@@ -25,7 +25,7 @@ async function safeSupabaseRequest<T>(
 // Get all users with their latest win information
 export async function getUsers() {
   try {
-    const supabase = getSupabase()
+    const supabase = await createActionSupabaseClient()
     const { data, error } = await supabase
       .from('users')
       .select('*')
@@ -41,34 +41,121 @@ export async function getUsers() {
   }
 }
 
+interface Vote {
+  id: string
+  voter_id: string
+  votee_id: string
+  created_at: string
+}
+
+interface SessionWithVotes extends VotingSession {
+  votes: Vote[]
+}
+
 // Get voting sessions
 export async function getVotingSessions() {
   try {
-    const supabase = getSupabase()
-    const { data, error } = await supabase
+    const supabase = await createActionSupabaseClient()
+
+    // First get all sessions with votes and user information
+    const { data: sessions, error: sessionError } = await supabase
       .from('voting_sessions')
-      .select('*')
+      .select(`
+        *,
+        votes(
+          id,
+          voter_id,
+          votee_id,
+          created_at
+        )
+      `)
       .order('created_at', { ascending: false })
 
-    if (error) {
-      return { error }
+    if (sessionError) {
+      console.error("Supabase query error:", sessionError)
+      return { error: sessionError }
     }
 
-    return { sessions: data as VotingSession[] }
+    if (!sessions) {
+      console.error("No sessions data returned")
+      return { error: new Error("No sessions data returned") }
+    }
+
+    // For each session, fetch the user information for voters and votees
+    const processedSessions = await Promise.all((sessions as SessionWithVotes[]).map(async (session) => {
+      const votes = session.votes || []
+
+      // Get unique user IDs from both voters and votees
+      const userIds = [...new Set([
+        ...votes.map((v: Vote) => v.voter_id),
+        ...votes.map((v: Vote) => v.votee_id)
+      ])]
+
+      // Fetch user information for all involved users
+      const { data: users } = await supabase
+        .from('users')
+        .select('*')
+        .in('id', userIds)
+
+      const userMap = (users || []).reduce((acc, user) => {
+        acc[user.id] = user
+        return acc
+      }, {} as Record<string, User>)
+
+      // Process votes with user information
+      const processedVotes = votes.map((vote: Vote) => ({
+        ...vote,
+        voter: userMap[vote.voter_id],
+        votee: userMap[vote.votee_id]
+      }))
+
+      // Calculate winner
+      const voteCounts: Record<string, number> = {}
+      processedVotes.forEach((vote) => {
+        const voteeId = vote.votee_id
+        voteCounts[voteeId] = (voteCounts[voteeId] || 0) + 1
+      })
+
+      // Find winner
+      let winner = null
+      let maxVotes = 0
+      Object.entries(voteCounts).forEach(([voteeId, count]) => {
+        if (count > maxVotes) {
+          maxVotes = count
+          winner = userMap[voteeId] || null
+        }
+      })
+
+      // Get unique voters
+      const voters = [...new Set(votes.map((v: Vote) => v.voter_id))]
+        .map(id => userMap[id])
+        .filter((user): user is User => user !== undefined)
+
+      return {
+        ...session,
+        winner,
+        voters,
+        total_votes: votes.length
+      }
+    }))
+
+    return { sessions: processedSessions }
   } catch (error) {
+    console.error("Unexpected error in getVotingSessions:", error)
     return { error }
   }
 }
 
 
 // Get current user's vote for this week
-export async function getCurrentVote(userId: string) {
+export async function getCurrentVoteInVotingSession(userId: string, votingSessionId: number) {
   try {
-    const supabase = getSupabase()
+    const supabase = await createActionSupabaseClient()
     const { data, error } = await supabase
       .from('votes')
       .select('*')
       .eq('voter_id', userId)
+      .eq('session', votingSessionId)
       .single()
 
     if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
@@ -84,7 +171,7 @@ export async function getCurrentVote(userId: string) {
 // Create a new voting session
 export async function createVotingSession(weekNumber: number, year: number) {
   try {
-    const supabase = getSupabase()
+    const supabase = await createActionSupabaseClient()
 
     // Check if a session already exists for this week and year
     const { data: existingSession, error: checkError } = await supabase
@@ -132,7 +219,7 @@ export async function submitVote(
   sessionId?: number
 ) {
   try {
-    const supabase = getSupabase()
+    const supabase = await createActionSupabaseClient()
 
     // If no session ID is provided, get the current active session
     if (!sessionId) {
@@ -227,7 +314,7 @@ export async function testSupabaseSetup() {
 // Close an existing voting session
 export async function closeVotingSession(sessionId: number) {
   try {
-    const supabase = getSupabase()
+    const supabase = await createActionSupabaseClient()
 
     const { error } = await supabase
       .from('voting_sessions')

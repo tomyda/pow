@@ -44,6 +44,40 @@ export async function GET(request: Request) {
           // Redirect to unauthorized page
           return NextResponse.redirect(new URL("/unauthorized", requestUrl.origin))
         }
+
+        // Check if user record exists
+        const { data: existingUser, error: existingUserError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('id', data.user.id)
+          .single()
+
+        if (existingUserError && existingUserError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+          console.error("Error checking existing user:", existingUserError)
+          return NextResponse.redirect(
+            new URL(`/?error=${encodeURIComponent("Failed to check user record")}`, requestUrl.origin),
+          )
+        }
+
+        // If user doesn't exist in the users table, create a record
+        if (!existingUser) {
+          const { error: createError } = await supabase
+            .from('users')
+            .insert({
+              id: data.user.id,
+              email: data.user.email,
+              name: data.user.user_metadata?.name || email.split('@')[0],
+              avatar_url: data.user.user_metadata?.avatar_url,
+              is_admin: false // Default to non-admin
+            })
+
+          if (createError) {
+            console.error("Error creating user record:", createError)
+            return NextResponse.redirect(
+              new URL(`/?error=${encodeURIComponent("Failed to create user record")}`, requestUrl.origin),
+            )
+          }
+        }
       }
     }
 

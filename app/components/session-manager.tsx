@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input"
 interface SessionManagerProps {
   onSessionCreated?: () => void
   onSessionClosed?: () => void
+  hasOpenSession?: boolean
 }
 
 interface SupabaseError {
@@ -26,7 +27,7 @@ interface SupabaseError {
   details?: string
 }
 
-export function SessionManager({ onSessionCreated, onSessionClosed }: SessionManagerProps) {
+export function SessionManager({ onSessionCreated, onSessionClosed, hasOpenSession }: SessionManagerProps) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false)
   const [weekNumber, setWeekNumber] = useState("")
@@ -113,7 +114,7 @@ export function SessionManager({ onSessionCreated, onSessionClosed }: SessionMan
     <div className="flex gap-4">
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogTrigger asChild>
-          <Button>Create New Session</Button>
+          <Button disabled={hasOpenSession}>Create New Session</Button>
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>

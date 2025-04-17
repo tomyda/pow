@@ -24,6 +24,9 @@ export default function Home() {
   const router = useRouter()
   const supabase = getSupabase()
 
+  // Check if there's an open session
+  const hasOpenSession = sessions.some(session => session.status === "OPEN")
+
   const loadSessions = async () => {
     try {
       setLoading(true)
@@ -34,7 +37,12 @@ export default function Home() {
 
       if (sessionsError) {
         console.error("Error fetching sessions:", sessionsError)
-        throw sessionsError
+        const errorMessage = sessionsError instanceof Error
+          ? sessionsError.message
+          : typeof sessionsError === 'object' && sessionsError !== null
+            ? JSON.stringify(sessionsError)
+            : 'Failed to load sessions'
+        throw new Error(errorMessage)
       }
 
       if (!sessions) {
@@ -120,6 +128,7 @@ export default function Home() {
             <SessionManager
               onSessionCreated={loadSessions}
               onSessionClosed={loadSessions}
+              hasOpenSession={hasOpenSession}
             />
           )}
         </div>
@@ -151,6 +160,9 @@ export default function Home() {
                 weekNumber={session.week_number}
                 status={session.status}
                 createdAt={session.created_at}
+                winner={session.winner}
+                voters={session.voters}
+                total_votes={session.total_votes}
               />
             ))
           )}
