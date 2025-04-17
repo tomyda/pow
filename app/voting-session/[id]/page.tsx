@@ -203,7 +203,7 @@ const OpenVotingSession = ({ votingSession }: { votingSession: VotingSession }) 
     setIsVoteModalOpen(true)
   }
 
-  const handleVoteSubmit = async (reason: string, honorableMentions: string) => {
+  const handleVoteSubmit = async (value: string, reason: string, honorableMentions: string) => {
     console.log('step 1')
     if (!authSession || !selectedUserData || !votingSession) {
       toast({
@@ -218,7 +218,7 @@ const OpenVotingSession = ({ votingSession }: { votingSession: VotingSession }) 
 
     try {
       setSubmitting(true)
-      const { success, error: voteError } = await submitVote(authSession.user.id, selectedUserData.id, reason, honorableMentions, votingSession.id)
+      const { success, error: voteError } = await submitVote(authSession.user.id, selectedUserData.id, value, reason, honorableMentions, votingSession.id)
 
       if (voteError) {
         const errorMessage = typeof voteError === 'string'

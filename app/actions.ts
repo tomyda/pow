@@ -223,6 +223,7 @@ export async function createVotingSession(weekNumber: number) {
 export async function submitVote(
   voterId: string,
   voteeId: string,
+  value: string,
   reason: string,
   honorableMentions: string,
   sessionId?: number
@@ -268,6 +269,7 @@ export async function submitVote(
       .insert({
         voter_id: voterId,
         votee_id: voteeId,
+        value,
         reason,
         honorable_mentions: honorableMentions,
         session: sessionId,

@@ -15,6 +15,7 @@ export interface Vote {
   week_number: number
   year: number
   session: VotingSession
+  value: string
   reason: string
   honorable_mentions: string
 }
