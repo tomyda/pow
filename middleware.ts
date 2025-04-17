@@ -19,12 +19,12 @@ export async function middleware(req: NextRequest) {
     // Add Content-Security-Policy header to allow Google authentication and other necessary resources
     res.headers.set(
       "Content-Security-Policy",
-      "default-src 'self'; " +
-      "connect-src 'self' https://*.supabase.co https://api.supabase.io https://*.google.com https://accounts.google.com https://my.productfruits.com; " +
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.productfruits.com; " +
-      "style-src 'self' 'unsafe-inline'; " +
-      "frame-src https://accounts.google.com; " +
-      "img-src 'self' data: https://*.googleusercontent.com https://api.dicebear.com https://my.productfruits.com;"
+      "default-src 'self' *; " +
+      "connect-src 'self' * https://*.supabase.co https://api.supabase.io https://*.google.com https://accounts.google.com https://my.productfruits.com; " +
+      "script-src 'self' * 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.productfruits.com; " +
+      "style-src 'self' * 'unsafe-inline'; " +
+      "frame-src * https://accounts.google.com; " +
+      "img-src 'self' * data: https://*.googleusercontent.com https://api.dicebear.com https://my.productfruits.com https://*.licdn.com https://media.licdn.com;"
     )
 
     // Create the Supabase client with the response
