@@ -147,6 +147,11 @@ export default function RevealResultsPage() {
                                 <span className="text-sm font-medium">{vote.voter.name}</span>
                               </div>
                               <p className="text-sm text-muted-foreground">{vote.reason}</p>
+                              <div className="mt-2">
+                                <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+                                  {vote.value}
+                                </span>
+                              </div>
                               {vote.honorable_mentions && (
                                 <p className="text-sm text-muted-foreground mt-2">
                                   <span className="font-medium">Honorable mentions:</span> {vote.honorable_mentions}
