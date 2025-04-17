@@ -180,7 +180,7 @@ export async function getCurrentVoteInVotingSession(userId: string, votingSessio
 }
 
 // Create a new voting session
-export async function createVotingSession(weekNumber: number, year: number) {
+export async function createVotingSession(weekNumber: number) {
   try {
     const supabase = await createActionSupabaseClient()
 
@@ -189,7 +189,6 @@ export async function createVotingSession(weekNumber: number, year: number) {
       .from('voting_sessions')
       .select('id')
       .eq('week_number', weekNumber)
-      .eq('year', year)
       .single()
 
     if (checkError && checkError.code !== 'PGRST116') {
@@ -205,7 +204,6 @@ export async function createVotingSession(weekNumber: number, year: number) {
       .from('voting_sessions')
       .insert({
         week_number: weekNumber,
-        year: year,
         status: 'OPEN',
       })
       .select()

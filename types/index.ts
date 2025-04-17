@@ -23,6 +23,7 @@ export interface VotingSession {
   id: number
   created_at: string
   week_number: number
+  year: number
   status: string
   winner?: User | null
   voters?: User[]

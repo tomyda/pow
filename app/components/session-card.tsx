@@ -39,7 +39,7 @@ export function SessionCard({
   onSessionClosed
 }: SessionCardProps) {
   const router = useRouter()
-  const formattedDate = new Date(createdAt).toLocaleDateString()
+  const formattedDate = new Date(createdAt).toDateString()
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
 
@@ -115,11 +115,11 @@ export function SessionCard({
         </div>
 
         {status === "CLOSED" && winner && (
-          <div className="mt-4 flex items-center gap-2 bg-yellow-50/20 p-4 rounded-lg border border-yellow-200">
+          <div className="mt-6 flex items-center gap-2 bg-yellow-50/20 p-4 rounded-lg border border-yellow-200">
             <Trophy className="h-5 w-5 text-yellow-500" />
             <div className="flex items-center gap-2">
-              <Avatar className="h-8 w-8">
-                <AvatarImage src={winner.avatar_url} alt={winner.name} />
+              <Avatar className="h-20 w-20">
+                <AvatarImage  src={winner.avatar_url} alt={winner.name} />
                 <AvatarFallback>{winner.name.charAt(0)}</AvatarFallback>
               </Avatar>
               <div>
@@ -139,9 +139,9 @@ export function SessionCard({
             ) : "No votes yet"}
             <div className="flex -space-x-2">
               {voters.map((voter) => (
-                <Avatar key={voter.id} className="h-6 w-6 border-2 border-background">
+                <Avatar key={voter.id} className="h-12 w-12 border-2 border-background">
                   <AvatarImage src={voter.avatar_url} alt={voter.name} />
-                  <AvatarFallback>{voter.name.charAt(0)}</AvatarFallback>
+                  <AvatarFallback className="text-lg">{voter.name.charAt(0)}</AvatarFallback>
                 </Avatar>
               ))}
             </div>

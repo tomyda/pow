@@ -29,7 +29,6 @@ interface SupabaseError {
 export function SessionManager({ onSessionCreated, hasOpenSession }: SessionManagerProps) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [weekNumber, setWeekNumber] = useState("")
-  const [year, setYear] = useState("")
   const [loading, setLoading] = useState(false)
   const { toast } = useToast()
   const currentWeek = getCurrentWeekAndYear()
@@ -38,9 +37,8 @@ export function SessionManager({ onSessionCreated, hasOpenSession }: SessionMana
     try {
       setLoading(true)
       const weekNum = parseInt(weekNumber || currentWeek.weekNumber.toString())
-      const yr = parseInt(year || currentWeek.year.toString())
 
-      const { session, error } = await createVotingSession(weekNum, yr)
+      const { session, error } = await createVotingSession(weekNum)
       if (error) {
         toast({
           title: "Error",
@@ -89,18 +87,6 @@ export function SessionManager({ onSessionCreated, hasOpenSession }: SessionMana
               placeholder={currentWeek.weekNumber.toString()}
               value={weekNumber}
               onChange={(e) => setWeekNumber(e.target.value)}
-              className="col-span-3"
-            />
-          </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="year" className="text-right">
-              Year
-            </Label>
-            <Input
-              id="year"
-              placeholder={currentWeek.year.toString()}
-              value={year}
-              onChange={(e) => setYear(e.target.value)}
               className="col-span-3"
             />
           </div>
