@@ -96,6 +96,25 @@ export default function Home() {
     }
 
     checkAuth()
+
+    // Add auth state change listener
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth state changed:", event)
+      if (event === 'SIGNED_OUT' || !session) {
+        console.log("User signed out, redirecting to auth...")
+        setUserId(null)
+        setIsAdmin(false)
+        setSessions([])
+        router.push('/auth')
+      }
+    })
+
+    // Cleanup subscription on unmount
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [router])
 
   const handleRetry = () => {
