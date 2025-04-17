@@ -10,6 +10,7 @@ export function AuthForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isSignUp, setIsSignUp] = useState(false)
+  const [showConfirmation, setShowConfirmation] = useState(false)
   const { toast } = useToast()
   const router = useRouter()
 
@@ -67,10 +68,7 @@ export function AuthForm() {
         })
         router.push("/")
       } else {
-        toast({
-          title: "Check your email",
-          description: "We've sent you a confirmation email",
-        })
+        setShowConfirmation(true)
       }
     } catch (error: any) {
       console.error("Error signing up:", error)
@@ -80,6 +78,26 @@ export function AuthForm() {
         variant: "destructive",
       })
     }
+  }
+
+  if (showConfirmation) {
+    return (
+      <div className="text-center space-y-4">
+        <h3 className="text-lg font-semibold">Check your email</h3>
+        <p className="text-muted-foreground">
+          We've sent you a confirmation email. Please check your inbox and follow the instructions to complete your registration.
+        </p>
+        <Button
+          variant="link"
+          onClick={() => {
+            setShowConfirmation(false)
+            setIsSignUp(false)
+          }}
+        >
+          Back to Sign In
+        </Button>
+      </div>
+    )
   }
 
   return (
@@ -115,7 +133,6 @@ export function AuthForm() {
         >
           {isSignUp ? "Already have an account? Sign in" : "Don't have an account? Sign up"}
         </Button>
-
       </div>
     </div>
   )
