@@ -11,7 +11,7 @@ import type { User } from "@/types"
 import { UserCard } from "@/components/user-card"
 import { VoteModal } from "@/app/components/vote-modal"
 import { useToast } from "@/hooks/use-toast"
-import { getUsers, submitVote, getCurrentVoteInVotingSession, closeVotingSession } from "@/app/actions"
+import { users, votes, sessions } from "@/app/actions/index"
 import { AuthSession } from '@supabase/supabase-js'
 import { UserCardSkeleton } from "@/components/user-card-skeleton"
 import { Button } from "@/components/ui/button"
@@ -40,6 +40,11 @@ interface SupabaseError {
   code?: string
   details?: string
 }
+
+const getUsers = users.getUsers
+const submitVote = votes.submitVote
+const getCurrentVoteInVotingSession = votes.getCurrentVoteInVotingSession
+const closeVotingSession = sessions.closeVotingSession
 
 export default function VotingSessionPage() {
   const params = useParams()
@@ -145,13 +150,16 @@ const OpenVotingSession = ({ votingSession }: { votingSession: VotingSession }) 
       try {
         setIsLoading(true)
         // Fetch all users
-        const { users: allUsers, error: usersError } = await getUsers()
+        const { data: usersData, error: usersError } = await getUsers()
         if (usersError) {
-          throw usersError
+          toast({
+            title: "Error",
+            description: usersError.message,
+            variant: "destructive",
+          })
+          return
         }
-        if (allUsers) {
-          setUsers(allUsers)
-        }
+        setUsers(usersData || [])
 
         // Check if user has already voted
         const { data: { session: authSession } } = await supabase.auth.getSession()
@@ -170,13 +178,21 @@ const OpenVotingSession = ({ votingSession }: { votingSession: VotingSession }) 
         if (userError) throw userError
         setIsAdmin(userData?.is_admin || false)
 
-        const { vote, error: voteError } = await getCurrentVoteInVotingSession(authSession.user.id, votingSession.id)
-        if (voteError && typeof voteError === 'object' && 'code' in voteError && voteError.code !== 'PGRST116') {
-          throw voteError
+        const { data: voteData, error: voteError } = await getCurrentVoteInVotingSession(
+          authSession.user.id,
+          votingSession.id
+        )
+        if (voteError) {
+          toast({
+            title: "Error",
+            description: voteError.message,
+            variant: "destructive",
+          })
+          return
         }
-        if (vote) {
+        if (voteData) {
           setHasVoted(true)
-          setSelectedUser(vote.votee_id)
+          setSelectedUser(voteData.votee_id)
         }
       } catch (err) {
         console.error("Error initializing:", err)
@@ -218,27 +234,33 @@ const OpenVotingSession = ({ votingSession }: { votingSession: VotingSession }) 
 
     try {
       setSubmitting(true)
-      const { success, error: voteError } = await submitVote(authSession.user.id, selectedUserData.id, value, reason, honorableMentions, votingSession.id)
+      const { data, error } = await submitVote(
+        authSession.user.id,
+        selectedUserData.id,
+        value,
+        reason,
+        honorableMentions,
+        votingSession.id
+      )
 
-      if (voteError) {
-        const errorMessage = typeof voteError === 'string'
-          ? voteError
-          : (voteError as SupabaseError).message
+      if (error) {
         toast({
           title: "Error",
-          description: errorMessage,
+          description: error.message,
           variant: "destructive",
         })
         return
       }
 
-      setSelectedUser(selectedUserData.id)
-      setHasVoted(true)
-      setIsVoteModalOpen(false)
-      toast({
-        title: "Success!",
-        description: `You voted for ${selectedUserData.name}`,
-      })
+      if (data !== undefined) {
+        setSelectedUser(selectedUserData.id)
+        setHasVoted(true)
+        setIsVoteModalOpen(false)
+        toast({
+          title: "Success",
+          description: `You voted for ${selectedUserData.name}`,
+        })
+      }
     } catch (err) {
       console.error("Error submitting vote:", err)
       toast({

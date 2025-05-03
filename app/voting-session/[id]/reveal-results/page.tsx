@@ -10,14 +10,16 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Card, CardHeader, CardContent } from "@/components/ui/card"
-import type { VoteeResult, VoteWithUsers, VotingSessionResults } from "@/types/voting"
-import { getVotingSessionResults } from "@/app/actions"
+import type { VoteeResult, VoteWithUsers } from "@/types/voting"
+import { sessions } from "@/app/actions/index"
 
 const medals = [
   { icon: Trophy, color: "text-yellow-500" },
   { icon: Medal, color: "text-gray-400" },
   { icon: Medal, color: "text-amber-600" },
 ]
+
+const getVotingSessionResults = sessions.getVotingSessionResults
 
 export default function RevealResultsPage() {
   const params = useParams()
@@ -46,13 +48,17 @@ export default function RevealResultsPage() {
           throw new Error("Invalid session ID")
         }
 
-        const { results, error: resultsError } = await getVotingSessionResults(sessionId)
+        const { data, error: resultsError } = await getVotingSessionResults(sessionId)
 
         if (resultsError) {
           throw resultsError
         }
 
-        setTopVotees(results)
+        if (!data) {
+          throw new Error("No results data returned")
+        }
+
+        setTopVotees(data)
 
         // Trigger animation after a short delay
         setTimeout(() => setShowResults(true), 500)

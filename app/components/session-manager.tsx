@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { createVotingSession } from "@/app/actions"
+import { sessions } from "@/app/actions/index"
 import { getCurrentWeekAndYear } from "@/lib/utils"
 import {
   Dialog,
@@ -16,8 +16,8 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 
 interface SessionManagerProps {
-  onSessionCreated?: () => void
-  hasOpenSession?: boolean
+  onSessionCreated?: (session: any) => void
+  hasOpenSession: boolean
 }
 
 interface SupabaseError {
@@ -25,6 +25,8 @@ interface SupabaseError {
   code?: string
   details?: string
 }
+
+const createVotingSession = sessions.createVotingSession
 
 export function SessionManager({ onSessionCreated, hasOpenSession }: SessionManagerProps) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
@@ -38,14 +40,17 @@ export function SessionManager({ onSessionCreated, hasOpenSession }: SessionMana
       setLoading(true)
       const weekNum = parseInt(weekNumber || currentWeek.weekNumber.toString())
 
-      const { session, error } = await createVotingSession(weekNum)
+      const { data, error } = await createVotingSession(weekNum)
       if (error) {
         toast({
           title: "Error",
-          description: typeof error === 'string' ? error : (error as SupabaseError).message,
+          description: error.message,
           variant: "destructive",
         })
         return
+      }
+      if (data) {
+        onSessionCreated?.(data)
       }
 
       toast({
@@ -53,7 +58,6 @@ export function SessionManager({ onSessionCreated, hasOpenSession }: SessionMana
         description: "Voting session created successfully",
       })
       setIsCreateDialogOpen(false)
-      onSessionCreated?.()
     } catch (err) {
       toast({
         title: "Error",

@@ -1,4 +1,5 @@
-import type { User, Vote } from "@/types"
+import type { User } from "@/types"
+import type { Vote } from "@/app/actions/types"
 
 export interface VoteWithUsers extends Vote {
   voter: User

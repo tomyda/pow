@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { getUsers } from "../actions"
+import { getUsers } from "@/app/actions/users"
 import type { User } from "@/types"
 import { Card, CardContent } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -18,10 +18,10 @@ export default function UsersPage() {
     async function loadUsers() {
       try {
         const result = await getUsers()
-        if ('error' in result && result.error) {
-          setError(typeof result.error === 'string' ? result.error : result.error.message)
-        } else if (result.users) {
-          setUsers(result.users)
+        if (result.error) {
+          setError(result.error.message)
+        } else if (result.data) {
+          setUsers(result.data)
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load users')

@@ -1,5 +1,7 @@
 "use server"
 
+// To be removed once the new actions are working
+
 import { revalidatePath } from "next/cache"
 import { createActionSupabaseClient } from "@/lib/supabase-server"
 import { getCurrentWeekAndYear } from "@/lib/utils"
@@ -108,7 +110,7 @@ export async function getVotingSessions() {
         .select('*')
         .in('id', userIds)
 
-      const userMap = (users || []).reduce((acc, user) => {
+      const userMap = (users || []).reduce((acc: Record<string, User>, user: User) => {
         acc[user.id] = user
         return acc
       }, {} as Record<string, User>)
@@ -378,8 +380,8 @@ export async function getVotingSessionResults(sessionId: number): Promise<{ resu
 
     // Get unique user IDs from both voters and votees
     const userIds = [...new Set([
-      ...votes.map(v => v.voter_id),
-      ...votes.map(v => v.votee_id)
+      ...votes.map((v: Vote) => v.voter_id),
+      ...votes.map((v: Vote) => v.votee_id)
     ])]
 
     // Fetch user information for all involved users
@@ -392,7 +394,7 @@ export async function getVotingSessionResults(sessionId: number): Promise<{ resu
       return { results: [], error: usersError }
     }
 
-    const userMap = (users || []).reduce((acc, user) => {
+    const userMap = (users || []).reduce((acc: Record<string, User>, user: User) => {
       acc[user.id] = user
       return acc
     }, {} as Record<string, User>)
@@ -400,7 +402,7 @@ export async function getVotingSessionResults(sessionId: number): Promise<{ resu
     // Process votes with user information
     const voteeMap = new Map<string, VoteeResult>()
 
-    votes.forEach(vote => {
+    votes.forEach((vote: Vote) => {
       const voteeId = vote.votee_id
       if (!voteeMap.has(voteeId)) {
         voteeMap.set(voteeId, {
