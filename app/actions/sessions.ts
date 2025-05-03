@@ -1,4 +1,4 @@
-import { createActionSupabaseClient } from "@/lib/supabase-server"
+import { createActionSupabaseClient } from "@/lib/supabase-actions"
 import { ApiResponse, SessionWithVotes, Vote, VoteWithUsers, VoteeResult, ApiError } from "./types"
 import type { User } from "@/types"
 import { handleSupabaseError, createUserMap } from "./utils"

@@ -1,0 +1,12 @@
+git checkout -b eytan_work
+git branch
+pnpm add -D @types/next
+pnpm approve-builds
+git status
+pnpm run dev
+git status
+git add .
+git commit -m "refactor actions.ts, update API response handling and fix TypeScript types"
+git push origin eytan_work
+rm -rf .next
+pnpm dev

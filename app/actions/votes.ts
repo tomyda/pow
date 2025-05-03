@@ -1,6 +1,6 @@
 "use server"
 
-import { createActionSupabaseClient } from "@/lib/supabase-server"
+import { createActionSupabaseClient } from "@/lib/supabase-actions"
 import { ApiResponse, ApiError } from "./types"
 import { handleSupabaseError } from "./utils"
 

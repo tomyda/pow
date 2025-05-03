@@ -3,7 +3,7 @@
 // To be removed once the new actions are working
 
 import { revalidatePath } from "next/cache"
-import { createActionSupabaseClient } from "@/lib/supabase-server"
+import { createActionSupabaseClient } from "@/lib/supabase-actions"
 import { getCurrentWeekAndYear } from "@/lib/utils"
 import type { User, VotingSession } from "@/types"
 import { SupabaseClient } from "@supabase/supabase-js"
