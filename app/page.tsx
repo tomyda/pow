@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { SessionCard } from "./components/session-card"
 import { SessionManager } from "./components/session-manager"
 import { VotingSession } from '@/types'
-import { getVotingSessions } from './actions'
+import { sessions as sessionsActions } from '@/app/actions/index'
 
 export default function Home() {
   const [sessions, setSessions] = useState<VotingSession[]>([])
@@ -33,24 +33,20 @@ export default function Home() {
       setError(null)
 
       console.log("Fetching sessions...")
-      const { sessions, error: sessionsError } = await getVotingSessions()
+      const { data: sessionsData, error: sessionsError } = await sessionsActions.getVotingSessions()
 
       if (sessionsError) {
         console.error("Error fetching sessions:", sessionsError)
-        const errorMessage = sessionsError instanceof Error
-          ? sessionsError.message
-          : typeof sessionsError === 'object' && sessionsError !== null
-            ? JSON.stringify(sessionsError)
-            : 'Failed to load sessions'
+        const errorMessage = sessionsError.message || 'Failed to load sessions'
         throw new Error(errorMessage)
       }
 
-      if (!sessions) {
+      if (!sessionsData) {
         throw new Error("No sessions data returned")
       }
 
-      console.log("Sessions data:", sessions)
-      setSessions(sessions)
+      console.log("Sessions data:", sessionsData)
+      setSessions(sessionsData)
     } catch (err) {
       console.error("Full error object:", err)
       const errorMessage = err instanceof Error ? err.message : 'Failed to load sessions'
