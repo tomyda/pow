@@ -97,13 +97,12 @@ export function useVoting(votingSession: VotingSession | null, authSession: Auth
       }
 
       if (data !== undefined) {
-        setSelectedUser(selectedUserData.id)
-        setHasVoted(true)
-        setIsVoteModalOpen(false)
-        toast({
-          title: "Success",
-          description: `You voted for ${selectedUserData.name}`,
-        })
+        // Close the modal
+        setIsVoteModalOpen(false);
+        
+        // Force a re-render by manipulating the window location
+        // Refreshes the page without changing the URL in the browser
+        window.location.href = window.location.href.split('?')[0];
       }
     } catch (err) {
       console.error("Error submitting vote:", err)
