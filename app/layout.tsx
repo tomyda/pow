@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { AuthButton } from "@/components/auth-button"
 import { NavigationMenu, NavigationMenuList, UserNavigation } from "@/components/ui/navigation-menu"
 import { Toaster } from "@/components/ui/toaster"
+import { Header } from './components/header'
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -50,6 +51,5 @@ export default function RootLayout({
     </html>
   )
 }
-
 
 import './globals.css'
