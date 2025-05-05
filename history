@@ -1,0 +1,39 @@
+git checkout -b eytan_work
+git branch
+pnpm add -D @types/next
+pnpm approve-builds
+git status
+pnpm run dev
+git status
+git add .
+git commit -m "refactor actions.ts, update API response handling and fix TypeScript types"
+git push origin eytan_work
+rm -rf .next
+pnpm dev
+pnpm run dev
+pnpm run dev
+pnpm run dev
+pnpm run dev
+pnpm run dev
+git add .
+git commit -m "refactor: migrate to modular server actions structure"
+git push origin eytan_work
+pnpm run
+pnpm dev
+pnpm dev
+git add .
+git commit -m "fixed last import from ./actions in page.tsx"
+git push origin eytan_work
+pnpm dev
+pnpm dev
+git add .
+git commit -m "DELETED actions.ts after refactoring"
+git push origin eytan_work
+pnpm dev
+pnpm dev
+git add .
+git commit -m "refactor: modularize voting session page for improved maintainability"
+git push origin eytan_work
+find app -type f -name "*.ts*" -exec wc -l {} \; | sort -nr | head -10
+mkdir -p app/voting-session/[id]/components app/voting-session/[id]/hooks
+echo "Steps to configure Google OAuth in Supabase"

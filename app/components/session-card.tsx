@@ -5,7 +5,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Trophy, Lock, Timer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
-import { closeVotingSession } from "@/app/actions"
+import { sessions } from "@/app/actions/index"
 import { useToast } from "@/hooks/use-toast"
 
 interface User {
@@ -27,6 +27,8 @@ interface SessionCardProps {
   onSessionClosed?: () => void
 }
 
+const closeVotingSession = sessions.closeVotingSession
+
 export function SessionCard({
   id,
   weekNumber,
@@ -47,23 +49,25 @@ export function SessionCard({
     e.stopPropagation() // Prevent card click navigation
     try {
       setLoading(true)
-      const { success, error } = await closeVotingSession(id)
+      const { data, error } = await closeVotingSession(id)
 
       if (error) {
         toast({
           title: "Error",
-          description: typeof error === 'string' ? error : error.message,
+          description: error.message,
           variant: "destructive",
         })
         return
+      }
+
+      if (data !== undefined) {
+        onSessionClosed?.()
       }
 
       toast({
         title: "Success",
         description: "Voting session closed successfully",
       })
-
-      onSessionClosed?.()
     } catch (err) {
       toast({
         title: "Error",
