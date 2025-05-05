@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { User } from "@/types"
+import { useToast } from "@/hooks/use-toast"
 
 interface VoteModalProps {
   isOpen: boolean
@@ -28,12 +29,26 @@ export function VoteModal({ isOpen, onClose, onConfirm, selectedUser }: VoteModa
   const [value, setValue] = useState<string>("")
   const [reason, setReason] = useState("")
   const [honorableMentions, setHonorableMentions] = useState("")
+  const { toast } = useToast()
 
-  const handleConfirm = () => {
-    onConfirm(value, reason, honorableMentions)
-    setValue("")
-    setReason("")
-    setHonorableMentions("")
+  const handleConfirm = async () => {
+    try {
+      await onConfirm(value, reason, honorableMentions)
+      
+      handleClose()
+      
+      toast({
+        title: "Vote Submitted",
+        description: `You successfully voted for ${selectedUser?.name}`,
+        duration: 2000,
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "There was an error submitting your vote",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleClose = () => {
