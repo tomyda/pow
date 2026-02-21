@@ -38,7 +38,10 @@ export async function middleware(req: NextRequest) {
 
     // If user is not signed in and trying to access a protected route, redirect to auth
     if (isProtectedRoute && !session) {
-      return NextResponse.redirect(new URL('/auth', req.url))
+      const authUrl = new URL('/auth', req.url)
+      if (req.nextUrl.pathname !== authUrl.pathname) {
+        return NextResponse.redirect(authUrl)
+      }
     }
 
     // If user is signed in but doesn't have a valid email domain
