@@ -55,8 +55,7 @@ export async function middleware(req: NextRequest) {
     return res
   } catch (error) {
     console.error("Middleware error:", error)
-    // Return a redirect to auth page on error
-    return NextResponse.redirect(new URL('/auth', req.url))
+    return NextResponse.next()
   }
 }
 
