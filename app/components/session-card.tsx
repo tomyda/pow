@@ -2,7 +2,7 @@ import { useRouter } from "next/navigation"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Trophy, Lock, Timer } from "lucide-react"
+import { Trophy, Lock, Timer, Medal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
 import { sessions } from "@/app/actions/index"
@@ -21,6 +21,7 @@ interface SessionCardProps {
   status: string
   createdAt: string
   winner?: User | null
+  runners_up?: User[]
   voters?: User[]
   total_votes?: number
   isAdmin?: boolean
@@ -35,6 +36,7 @@ export function SessionCard({
   status,
   createdAt,
   winner,
+  runners_up = [],
   voters = [],
   total_votes = 0,
   isAdmin = false,
@@ -119,18 +121,44 @@ export function SessionCard({
         </div>
 
         {status === "CLOSED" && winner && (
-          <div className="mt-6 flex items-center gap-2 bg-yellow-50/20 p-4 rounded-lg border border-yellow-200">
-            <Trophy className="h-5 w-5 text-yellow-500" />
-            <div className="flex items-center gap-2">
-              <Avatar className="h-20 w-20">
-                <AvatarImage  src={winner.avatar_url} alt={winner.name} />
-                <AvatarFallback>{winner.name.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <div>
-                <span className="text-sm font-medium">{winner.name}</span>
-                <p className="text-xs text-muted-foreground">Winner</p>
+          <div className="mt-6 flex flex-col gap-2">
+            <div className="flex items-center gap-2 bg-yellow-50/20 p-4 rounded-lg border border-yellow-200">
+              <Trophy className="h-5 w-5 text-yellow-500" />
+              <div className="flex items-center gap-2">
+                <Avatar className="h-20 w-20">
+                  <AvatarImage src={winner.avatar_url} alt={winner.name} />
+                  <AvatarFallback>{winner.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <span className="text-sm font-medium">{winner.name}</span>
+                  <p className="text-xs text-muted-foreground">Winner</p>
+                </div>
               </div>
             </div>
+            {runners_up.length > 0 && (
+              <div className="flex gap-2">
+                {runners_up.map((user, index) => (
+                  <div
+                    key={user.id}
+                    className={`flex-1 flex items-center gap-2 p-3 rounded-lg border ${
+                      index === 0
+                        ? 'bg-gray-200/10 border-gray-300'
+                        : 'bg-amber-800/10 border-amber-700/30'
+                    }`}
+                  >
+                    <Medal className={`h-4 w-4 ${index === 0 ? 'text-gray-400' : 'text-amber-700'}`} />
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={user.avatar_url} alt={user.name} />
+                      <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <span className="text-sm font-medium">{user.name}</span>
+                      <p className="text-xs text-muted-foreground">{index === 0 ? '2nd Place' : '3rd Place'}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -138,7 +166,7 @@ export function SessionCard({
           <div className="mt-4 flex flex-col gap-2">
             {total_votes > 0 ? (
               <p className="text-sm text-muted-foreground mt-1">
-                {total_votes} vote{total_votes !== 1 ? 's' : ''}
+                Voted by · {total_votes} vote{total_votes !== 1 ? 's' : ''}
               </p>
             ) : "No votes yet"}
             <div className="flex -space-x-2">

@@ -27,6 +27,7 @@ export interface VotingSession {
   year: number
   status: string
   winner?: User | null
+  runners_up?: User[]
   voters?: User[]
   total_votes?: number
 }

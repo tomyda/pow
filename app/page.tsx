@@ -8,8 +8,11 @@ import { getSupabase } from "@/lib/supabase"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle, Loader2, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { SessionCard } from "./components/session-card"
 import { SessionManager } from "./components/session-manager"
+import { AnalyticsTab } from "./components/analytics-tab"
+import { YourVotesTab } from "./components/your-votes-tab"
 import { VotingSession } from '@/types'
 import { sessions as sessionsActions } from '@/app/actions/index'
 
@@ -161,28 +164,47 @@ export default function Home() {
           <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       ) : userId ? (
-        <div className="space-y-4">
-          {sessions.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No voting sessions found. {isAdmin && "Use the 'Create New Session' button to start one."}
+        <Tabs defaultValue="sessions" className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="sessions">Sessions</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="your-votes">Your Votes</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="sessions">
+            <div className="space-y-4">
+              {sessions.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No voting sessions found. {isAdmin && "Use the 'Create New Session' button to start one."}
+                </div>
+              ) : (
+                sessions.map((session) => (
+                  <SessionCard
+                    key={session.id}
+                    id={session.id}
+                    weekNumber={session.week_number}
+                    status={session.status}
+                    createdAt={session.created_at}
+                    winner={session.winner}
+                    runners_up={session.runners_up}
+                    voters={session.voters}
+                    total_votes={session.total_votes}
+                    isAdmin={isAdmin}
+                    onSessionClosed={loadSessions}
+                  />
+                ))
+              )}
             </div>
-          ) : (
-            sessions.map((session) => (
-              <SessionCard
-                key={session.id}
-                id={session.id}
-                weekNumber={session.week_number}
-                status={session.status}
-                createdAt={session.created_at}
-                winner={session.winner}
-                voters={session.voters}
-                total_votes={session.total_votes}
-                isAdmin={isAdmin}
-                onSessionClosed={loadSessions}
-              />
-            ))
-          )}
-        </div>
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <AnalyticsTab />
+          </TabsContent>
+
+          <TabsContent value="your-votes">
+            <YourVotesTab userId={userId} />
+          </TabsContent>
+        </Tabs>
       ) : (
         <div className="flex flex-col items-center justify-center h-64 space-y-4">
           <h2 className="text-2xl font-semibold">Welcome to Horizon - Person of the Week</h2>

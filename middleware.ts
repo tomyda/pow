@@ -1,22 +1,18 @@
-import { createMiddlewareClient } from "@supabase/auth-helpers-nextjs"
+import { createServerClient } from "@supabase/auth-helpers-nextjs"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
-// List of routes that require authentication
 const protectedRoutes = ['/vote', '/profile', '/admin', '/test', '/users']
 
 export async function middleware(req: NextRequest) {
   try {
-    // Create a response object
-    const res = NextResponse.next()
+    let res = NextResponse.next()
 
-    // Add security headers to allow Google authentication
     res.headers.set("Access-Control-Allow-Origin", "*")
     res.headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
     res.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization")
     res.headers.set("Access-Control-Allow-Credentials", "true")
 
-    // Add Content-Security-Policy header to allow Google authentication and other necessary resources
     res.headers.set(
       "Content-Security-Policy",
       "default-src 'self' *; " +
@@ -27,16 +23,31 @@ export async function middleware(req: NextRequest) {
       "img-src 'self' * data: https://*.googleusercontent.com https://api.dicebear.com https://my.productfruits.com https://*.licdn.com https://media.licdn.com;"
     )
 
-    // Create the Supabase client with the response
-    const supabase = createMiddlewareClient({ req, res })
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return req.cookies.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              req.cookies.set(name, value)
+            )
+            res = NextResponse.next({ request: req })
+            cookiesToSet.forEach(({ name, value, options }) =>
+              res.cookies.set(name, value, options)
+            )
+          },
+        },
+      }
+    )
 
-    // Get the session asynchronously
     const { data: { session } } = await supabase.auth.getSession()
 
-    // Check if the route is protected
     const isProtectedRoute = protectedRoutes.some(route => req.nextUrl.pathname.startsWith(route))
 
-    // If user is not signed in and trying to access a protected route, redirect to auth
     if (isProtectedRoute && !session) {
       const authUrl = new URL('/auth', req.url)
       if (req.nextUrl.pathname !== authUrl.pathname) {
@@ -44,13 +55,10 @@ export async function middleware(req: NextRequest) {
       }
     }
 
-    // If user is signed in but doesn't have a valid email domain
     if (session?.user) {
       const email = session.user.email
       if (!email || !email.endsWith("@usehorizon.ai")) {
-        // Sign out the user
         await supabase.auth.signOut()
-        // Redirect to unauthorized page
         return NextResponse.redirect(new URL("/unauthorized", req.url))
       }
     }
@@ -62,7 +70,6 @@ export async function middleware(req: NextRequest) {
   }
 }
 
-// Specify which routes should be processed by middleware
 export const config = {
   matcher: [
     '/',

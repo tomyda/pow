@@ -1,8 +1,97 @@
 "use server"
 
 import { createActionSupabaseClient } from "@/lib/supabase-actions"
-import { ApiResponse, ApiError } from "./types"
-import { handleSupabaseError } from "./utils"
+import { ApiResponse, ApiError, VoteWithUsers } from "./types"
+import { handleSupabaseError, createUserMap } from "./utils"
+import type { User } from "@/types"
+
+export async function getAnalyticsData(): Promise<ApiResponse<{
+  valueDistribution: { value: string; count: number }[]
+  peopleRanking: { user: User; totalVotes: number }[]
+}>> {
+  try {
+    const supabase = await createActionSupabaseClient()
+
+    const { data: votes, error: votesError } = await supabase
+      .from('votes')
+      .select('votee_id, value')
+
+    if (votesError) return { error: handleSupabaseError(votesError) }
+    if (!votes || votes.length === 0) {
+      return { data: { valueDistribution: [], peopleRanking: [] } }
+    }
+
+    const valueCounts: Record<string, number> = {}
+    const voteeCounts: Record<string, number> = {}
+
+    votes.forEach((vote) => {
+      if (vote.value) {
+        valueCounts[vote.value] = (valueCounts[vote.value] || 0) + 1
+      }
+      voteeCounts[vote.votee_id] = (voteeCounts[vote.votee_id] || 0) + 1
+    })
+
+    const valueDistribution = Object.entries(valueCounts)
+      .map(([value, count]) => ({ value, count }))
+      .sort((a, b) => b.count - a.count)
+
+    const voteeIds = Object.keys(voteeCounts)
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('*')
+      .in('id', voteeIds)
+
+    if (usersError) return { error: handleSupabaseError(usersError) }
+
+    const userMap = createUserMap(users || [])
+    const peopleRanking = Object.entries(voteeCounts)
+      .map(([userId, totalVotes]) => ({ user: userMap[userId] as User, totalVotes }))
+      .filter((entry) => entry.user !== undefined)
+      .sort((a, b) => b.totalVotes - a.totalVotes)
+
+    return { data: { valueDistribution, peopleRanking } }
+  } catch (error) {
+    return { error: handleSupabaseError(error) }
+  }
+}
+
+export async function getUserVotes(userId: string): Promise<ApiResponse<(VoteWithUsers & { session_week: number })[]>> {
+  try {
+    const supabase = await createActionSupabaseClient()
+
+    const { data: votes, error: votesError } = await supabase
+      .from('votes')
+      .select('*, voting_sessions!inner(week_number)')
+      .eq('voter_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (votesError) return { error: handleSupabaseError(votesError) }
+    if (!votes || votes.length === 0) return { data: [] }
+
+    const voteeIds = [...new Set(votes.map((v) => v.votee_id))]
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('*')
+      .in('id', voteeIds)
+
+    if (usersError) return { error: handleSupabaseError(usersError) }
+
+    const userMap = createUserMap(users || [])
+
+    const voterUser = (await supabase.from('users').select('*').eq('id', userId).single()).data
+
+    const result = votes.map((vote) => ({
+      ...vote,
+      voter: voterUser as User,
+      votee: userMap[vote.votee_id] as User,
+      session_week: (vote.voting_sessions as any)?.week_number ?? vote.week_number,
+    }))
+
+    return { data: result }
+  } catch (error) {
+    return { error: handleSupabaseError(error) }
+  }
+}
 
 // Get current user's vote for this week
 export async function getCurrentVoteInVotingSession(

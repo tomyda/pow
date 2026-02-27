@@ -58,14 +58,13 @@ export async function getVotingSessions(): Promise<ApiResponse<SessionWithVotes[
         voteCounts[voteeId] = (voteCounts[voteeId] || 0) + 1
       })
 
-      let winner = null
-      let maxVotes = 0
-      Object.entries(voteCounts).forEach(([voteeId, count]) => {
-        if (count > maxVotes) {
-          maxVotes = count
-          winner = userMap[voteeId] || null
-        }
-      })
+      const sortedVotees = Object.entries(voteCounts)
+        .sort(([, a], [, b]) => b - a)
+        .map(([voteeId]) => userMap[voteeId])
+        .filter((user): user is User => user !== undefined)
+
+      const winner = sortedVotees[0] || null
+      const runners_up = sortedVotees.slice(1, 3)
 
       const voters = [...new Set(votes.map((v: Vote) => v.voter_id))]
         .map(id => userMap[id])
@@ -74,6 +73,7 @@ export async function getVotingSessions(): Promise<ApiResponse<SessionWithVotes[
       return {
         ...session,
         winner,
+        runners_up,
         voters,
         total_votes: votes.length
       }
@@ -213,7 +213,6 @@ export async function getVotingSessionResults(sessionId: number): Promise<ApiRes
 
     const results = Array.from(voteeMap.values())
       .sort((a, b) => b.voteCount - a.voteCount)
-      .slice(0, 3)
 
     return { data: results }
   } catch (error) {
